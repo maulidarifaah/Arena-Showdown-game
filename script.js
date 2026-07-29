@@ -96,18 +96,16 @@ function startLevel() {
     const isP2Moving = keys['ArrowUp'] || keys['ArrowLeft'] || keys['ArrowDown'] || keys['ArrowRight'];
 
     if (isMultiplayer) {
-      // Pada mode 2 Player, minimal salah satu pemain harus bergerak
       if (!isP1Moving && !isP2Moving) {
         idleTimer++;
       } else {
-        idleTimer = 0; // Reset hitungan jika ada pergerakan
+        idleTimer = 0;
       }
     } else {
-      // Pada mode Single Player, Player 1 harus bergerak
       if (!isP1Moving) {
         idleTimer++;
       } else {
-        idleTimer = 0; // Reset hitungan jika Player 1 bergerak
+        idleTimer = 0;
       }
     }
 
@@ -119,8 +117,14 @@ function startLevel() {
 
     updateUI();
 
+    // Pengecekan saat waktu habis
     if (timeLeft <= 0) {
-      endGame("Waktu Habis!");
+      // Pengecekan kondisi Skor 0
+      if (player1.score === 0) {
+        endGame("Waktu Habis & Skor Kamu 0! (Game Over)");
+      } else {
+        endGame("Waktu Habis!");
+      }
     }
   }, 1000);
 }
@@ -162,7 +166,6 @@ function update() {
     if (keys['ArrowLeft'] && player2.x > 0) player2.x -= player2.speed;
     if (keys['ArrowRight'] && player2.x < canvas.width - player2.size) player2.x += player2.speed;
   } else {
-    // Perilaku AI Musuh
     if (player2.x < coin.x) player2.x += player2.speed;
     if (player2.x > coin.x) player2.x -= player2.speed;
     if (player2.y < coin.y) player2.y += player2.speed;
@@ -245,7 +248,11 @@ function endGame(reason) {
   playSound(150, 'sawtooth', 0.4);
 
   let winnerText = "";
-  if (player1.score > player2.score) {
+  
+  // Jika Player 1 skornya 0 saat game over
+  if (player1.score === 0 && !isMultiplayer) {
+    winnerText = "Kamu gagal mengumpulkan poin!";
+  } else if (player1.score > player2.score) {
     winnerText = "Player 1 Menang!";
   } else if (player2.score > player1.score) {
     winnerText = isMultiplayer ? "Player 2 Menang!" : "Computer Menang!";
@@ -254,7 +261,7 @@ function endGame(reason) {
   }
 
   menuTitle.innerText = "GAME OVER";
-  menuSubtitle.innerHTML = `<span style="color:#f43f5e;">${reason}</span><br><b>${winnerText}</b><br>Level Tertinggi: ${level}`;
+  menuSubtitle.innerHTML = `<span style="color:#f43f5e;">${reason}</span><br><b>${winnerText}</b><br>Skor Akhir: ${player1.score}<br>Level Tertinggi: ${level}`;
   overlay.style.display = 'flex';
 }
 
