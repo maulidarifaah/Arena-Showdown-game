@@ -22,7 +22,18 @@
     <!-- Overlay Menu / Game Over -->
     <div id="overlay" class="overlay">
       <h1 id="menu-title">ARENA SHOWDOWN</h1>
-      <p id="menu-subtitle">Pilih Mode Permainan:</p>
+      <p id="menu-subtitle">Pilih Tingkat Kesulitan & Mode:</p>
+      
+      <!-- Pilihan Kesulitan -->
+      <div class="difficulty-group">
+        <label>Kesulitan: </label>
+        <select id="difficulty-select">
+          <option value="easy">Mudah (Easy)</option>
+          <option value="medium" selected>Sedang (Medium)</option>
+          <option value="hard">Sulit (Hard)</option>
+        </select>
+      </div>
+
       <div class="btn-group">
         <button id="btn-single">1 Player (vs Computer)</button>
         <button id="btn-multi">2 Players (Lokal)</button>
