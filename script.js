@@ -9,6 +9,7 @@ const p2ScoreTxt = document.getElementById('p2-score');
 const overlay = document.getElementById('overlay');
 const menuTitle = document.getElementById('menu-title');
 const menuSubtitle = document.getElementById('menu-subtitle');
+const difficultySelect = document.getElementById('difficulty-select');
 
 // Game State Variables
 let isMultiplayer = false;
@@ -16,6 +17,14 @@ let gameRunning = false;
 let level = 1;
 let timeLeft = 30;
 let timerInterval = null;
+let currentDifficulty = 'medium';
+
+// Pengaturan Konfigurasi Kesulitan
+const difficultySettings = {
+  easy: { baseTime: 40, timeReduction: 2, aiSpeedBase: 2, aiSpeedMult: 0.3, scoreTarget: 3 },
+  medium: { baseTime: 30, timeReduction: 3, aiSpeedBase: 3, aiSpeedMult: 0.5, scoreTarget: 5 },
+  hard: { baseTime: 20, timeReduction: 4, aiSpeedBase: 4.5, aiSpeedMult: 0.7, scoreTarget: 7 }
+};
 
 let player1 = { x: 100, y: 225, size: 30, color: '#38bdf8', speed: 5, score: 0 };
 let player2 = { x: 670, y: 225, size: 30, color: '#f43f5e', speed: 4, score: 0 };
@@ -23,7 +32,7 @@ let coin = { x: 400, y: 250, size: 15 };
 
 const keys = {};
 
-// Web Audio API untuk efek suara
+// Web Audio API
 const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 
 function playSound(freq, type, duration) {
@@ -49,6 +58,7 @@ document.getElementById('btn-multi').addEventListener('click', () => startGame(t
 
 function startGame(multi) {
   isMultiplayer = multi;
+  currentDifficulty = difficultySelect.value;
   gameRunning = true;
   level = 1;
   player1.score = 0;
@@ -61,11 +71,14 @@ function startGame(multi) {
 }
 
 function startLevel() {
-  timeLeft = 30 - (level - 1) * 3; // Waktu berkurang tiap level
-  if (timeLeft < 10) timeLeft = 10;
+  const settings = difficultySettings[currentDifficulty];
   
-  // Tingkatkan kecepatan komputer seiring bertambahnya level
-  player2.speed = isMultiplayer ? 5 : 3 + level * 0.5;
+  // Pengaturan waktu berdasarkan kesulitan & level
+  timeLeft = settings.baseTime - (level - 1) * settings.timeReduction;
+  if (timeLeft < 8) timeLeft = 8; // Batas minimal waktu per level
+  
+  // Pengaturan kecepatan AI musuh
+  player2.speed = isMultiplayer ? 5 : settings.aiSpeedBase + (level * settings.aiSpeedMult);
 
   updateUI();
   
@@ -113,13 +126,12 @@ function update() {
 
   // Player 2 / AI Control
   if (isMultiplayer) {
-    // Arrow Keys untuk Player 2
     if (keys['ArrowUp'] && player2.y > 0) player2.y -= player2.speed;
     if (keys['ArrowDown'] && player2.y < canvas.height - player2.size) player2.y += player2.speed;
     if (keys['ArrowLeft'] && player2.x > 0) player2.x -= player2.speed;
     if (keys['ArrowRight'] && player2.x < canvas.width - player2.size) player2.x += player2.speed;
   } else {
-    // Perilaku AI Musuh sederhanan menuju koin
+    // Perilaku AI Musuh
     if (player2.x < coin.x) player2.x += player2.speed;
     if (player2.x > coin.x) player2.x -= player2.speed;
     if (player2.y < coin.y) player2.y += player2.speed;
@@ -135,13 +147,14 @@ function checkCoinCollision(p, isP1) {
   let dist = Math.hypot((p.x + p.size/2) - coin.x, (p.y + p.size/2) - coin.y);
   if (dist < p.size/2 + coin.size) {
     p.score++;
-    playSound(600, 'sine', 0.1); // Suara ambil poin
+    playSound(600, 'sine', 0.1);
     spawnCoin();
 
-    // Naik Level jika total skor mencapai batas
-    if (player1.score + player2.score >= level * 5) {
+    // Cek Naik Level berdasarkan Target Skor Kesulitan
+    const target = difficultySettings[currentDifficulty].scoreTarget;
+    if (player1.score + player2.score >= level * target) {
       level++;
-      playSound(800, 'triangle', 0.3); // Suara Naik Level
+      playSound(800, 'triangle', 0.3);
       startLevel();
     }
   }
@@ -149,10 +162,9 @@ function checkCoinCollision(p, isP1) {
 
 // Render Animasi & Background
 function draw() {
-  // Clear Frame
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  // Background Animasi Grid Line
+  // Background Grid Line
   ctx.strokeStyle = '#1e293b';
   ctx.lineWidth = 1;
   for (let x = 0; x < canvas.width; x += 40) {
@@ -162,34 +174,34 @@ function draw() {
     ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke();
   }
 
-  // Draw Coin (Animasi Bintang / Glowing Circle)
+  // Draw Coin
   ctx.fillStyle = '#facc15';
   ctx.shadowColor = '#facc15';
   ctx.shadowBlur = 15;
   ctx.beginPath();
   ctx.arc(coin.x, coin.y, coin.size, 0, Math.PI * 2);
   ctx.fill();
-  ctx.shadowBlur = 0; // Reset Shadow
+  ctx.shadowBlur = 0;
 
-  // Draw Player 1 (Blue)
+  // Draw Player 1
   ctx.fillStyle = player1.color;
   ctx.shadowColor = player1.color;
   ctx.shadowBlur = 10;
   ctx.fillRect(player1.x, player1.y, player1.size, player1.size);
 
-  // Draw Player 2 (Red)
+  // Draw Player 2
   ctx.fillStyle = player2.color;
   ctx.shadowColor = player2.color;
   ctx.shadowBlur = 10;
   ctx.fillRect(player2.x, player2.y, player2.size, player2.size);
   
-  ctx.shadowBlur = 0; // Reset
+  ctx.shadowBlur = 0;
 }
 
 function endGame(reason) {
   gameRunning = false;
   clearInterval(timerInterval);
-  playSound(150, 'sawtooth', 0.4); // Game over sound
+  playSound(150, 'sawtooth', 0.4);
 
   let winnerText = "";
   if (player1.score > player2.score) {
@@ -201,7 +213,7 @@ function endGame(reason) {
   }
 
   menuTitle.innerText = "GAME OVER";
-  menuSubtitle.innerHTML = `${reason}<br><b>${winnerText}</b><br>Level Tertinggi: ${level}`;
+  menuSubtitle.innerHTML = `${reason}<br><b>${winnerText}</b><br>Tingkat Kesulitan: ${currentDifficulty.toUpperCase()}<br>Level Tertinggi: ${level}`;
   overlay.style.display = 'flex';
 }
 
