@@ -19,6 +19,10 @@ let timeLeft = 30;
 let timerInterval = null;
 let currentDifficulty = 'medium';
 
+// System AFK / Idle Detection (Cek Kebiasaan Diam)
+let idleTimer = 0;
+const MAX_IDLE_TIME = 5; // Game over jika diam selama 5 detik
+
 // Pengaturan Konfigurasi Kesulitan
 const difficultySettings = {
   easy: { baseTime: 40, timeReduction: 2, aiSpeedBase: 2, aiSpeedMult: 0.3, scoreTarget: 3 },
@@ -63,6 +67,7 @@ function startGame(multi) {
   level = 1;
   player1.score = 0;
   player2.score = 0;
+  idleTimer = 0;
   
   overlay.style.display = 'none';
   resetPositions();
@@ -73,11 +78,9 @@ function startGame(multi) {
 function startLevel() {
   const settings = difficultySettings[currentDifficulty];
   
-  // Pengaturan waktu berdasarkan kesulitan & level
   timeLeft = settings.baseTime - (level - 1) * settings.timeReduction;
-  if (timeLeft < 8) timeLeft = 8; // Batas minimal waktu per level
+  if (timeLeft < 8) timeLeft = 8;
   
-  // Pengaturan kecepatan AI musuh
   player2.speed = isMultiplayer ? 5 : settings.aiSpeedBase + (level * settings.aiSpeedMult);
 
   updateUI();
@@ -85,7 +88,35 @@ function startLevel() {
   clearInterval(timerInterval);
   timerInterval = setInterval(() => {
     if (!gameRunning) return;
+    
     timeLeft--;
+    
+    // Cek apakah ada tombol pergerakan yang sedang ditekan
+    const isP1Moving = keys['w'] || keys['a'] || keys['s'] || keys['d'];
+    const isP2Moving = keys['ArrowUp'] || keys['ArrowLeft'] || keys['ArrowDown'] || keys['ArrowRight'];
+
+    if (isMultiplayer) {
+      // Pada mode 2 Player, minimal salah satu pemain harus bergerak
+      if (!isP1Moving && !isP2Moving) {
+        idleTimer++;
+      } else {
+        idleTimer = 0; // Reset hitungan jika ada pergerakan
+      }
+    } else {
+      // Pada mode Single Player, Player 1 harus bergerak
+      if (!isP1Moving) {
+        idleTimer++;
+      } else {
+        idleTimer = 0; // Reset hitungan jika Player 1 bergerak
+      }
+    }
+
+    // Jika waktu diam melebihi batas maksimal (5 detik)
+    if (idleTimer >= MAX_IDLE_TIME) {
+      endGame("Kamu Dikeluarkan Karena Diam / Tidak Bergerak!");
+      return;
+    }
+
     updateUI();
 
     if (timeLeft <= 0) {
@@ -150,7 +181,6 @@ function checkCoinCollision(p, isP1) {
     playSound(600, 'sine', 0.1);
     spawnCoin();
 
-    // Cek Naik Level berdasarkan Target Skor Kesulitan
     const target = difficultySettings[currentDifficulty].scoreTarget;
     if (player1.score + player2.score >= level * target) {
       level++;
@@ -172,6 +202,17 @@ function draw() {
   }
   for (let y = 0; y < canvas.height; y += 40) {
     ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke();
+  }
+
+  // Visual Peringatan jika Diam (> 2 detik)
+  if (idleTimer >= 2) {
+    ctx.fillStyle = 'rgba(244, 63, 94, 0.2)';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    ctx.fillStyle = '#f43f5e';
+    ctx.font = 'bold 16px Segoe UI';
+    ctx.textAlign = 'center';
+    ctx.fillText(`PERINGATAN: Bergeraklah! (Game Over dalam ${MAX_IDLE_TIME - idleTimer}s)`, canvas.width / 2, 30);
   }
 
   // Draw Coin
@@ -213,7 +254,7 @@ function endGame(reason) {
   }
 
   menuTitle.innerText = "GAME OVER";
-  menuSubtitle.innerHTML = `${reason}<br><b>${winnerText}</b><br>Tingkat Kesulitan: ${currentDifficulty.toUpperCase()}<br>Level Tertinggi: ${level}`;
+  menuSubtitle.innerHTML = `<span style="color:#f43f5e;">${reason}</span><br><b>${winnerText}</b><br>Level Tertinggi: ${level}`;
   overlay.style.display = 'flex';
 }
 
